@@ -1,0 +1,22 @@
+<h1>Consultar Status da Reclamação</h1>
+<form method="POST">
+    <input type="text" name="codigo" placeholder="Digite seu código (ex: 86fee298)" required>
+    <button type="submit">Buscar</button>
+</form>
+
+{% if reclamacao %}
+    <hr>
+    <h3>Detalhes:</h3>
+    <p><strong>Status:</strong> {{ reclamacao.status }}</p>
+    <p><strong>Sua Reclamação:</strong> {{ reclamacao.descricao_problema }}</p>
+    
+    {% if reclamacao.resposta_admin %}
+        <div style="background-color: #e1f5fe; padding: 10px;">
+            <p><strong>Resposta do Restaurante:</strong> {{ reclamacao.resposta_admin }}</p>
+            <small>Respondido em: {{ reclamacao.data_resposta.strftime('%d/%m/%Y') }}</small>
+        </div>
+    {% else %}
+        <p><em>Aguardando resposta do administrador...</em></p>
+    {% endif %}
+{% endif %}
+<br><a href="/">Voltar</a>

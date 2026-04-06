@@ -1,0 +1,25 @@
+<h1>Painel Administrativo - Gestão ISO 10002</h1>
+<table border="1">
+    <tr>
+        <th>Código</th>
+        <th>Cliente</th>
+        <th>Descrição</th>
+        <th>Resposta Atual</th>
+        <th>Ação</th>
+    </tr>
+    {% for r in reclamacoes %}
+    <tr>
+        <td>{{ r.codigo_unico }}</td>
+        <td>{{ r.nome_cliente }}</td>
+        <td>{{ r.descricao_problema }}</td>
+        <td>{{ r.resposta_admin or 'Pendente' }}</td>
+        <td>
+            <form action="/responder/{{ r.id }}" method="POST">
+                <textarea name="resposta" placeholder="Escreva a resposta..."></textarea><br>
+                <button type="submit">Enviar Resposta</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+<a href="/">Sair do Painel</a>

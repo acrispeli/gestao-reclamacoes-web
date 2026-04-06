@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro de Reclamação - ISO 10002</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Sistema de Gestão de Reclamações</h1>
+    <h3>Nova Reclamação (Baseado na ISO 10002)</h3>
+    
+    <form action="/cadastrar" method="POST">
+        <label>Nome do Reclamante:</label><br>
+        <input type="text" name="nome" required><br><br>
+
+        <label>Produto ou Serviço:</label><br>
+        <input type="text" name="produto" required><br><br>
+
+        <label>Descrição do Problema:</label><br>
+        <textarea name="descricao" rows="5" required></textarea><br><br>
+
+        <button type="submit">Enviar Reclamação</button>
+    </form>
+</body>
+</html>
