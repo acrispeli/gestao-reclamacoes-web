@@ -1,22 +1,29 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <title>Reclamação Registrada</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Reclamação Registrada com Sucesso!</h1>
-    <p>Obrigado por nos ajudar a melhorar nossos serviços.</p>
-    
-    <div style="background-color: #d4edda; padding: 20px; border: 1px solid #c3e6cb; display: inline-block;">
-        <p>Seu código de rastreio (ISO 10002) é:</p>
-        <h2 style="color: #155724;">{{ codigo }}</h2>
-    </div>
+    <div class="container-celular">
+        <h2 class="titulo-destaque" style="color: #28a745;">Sucesso!</h2>
+        <p class="subtitulo">Sua reclamação foi registrada.</p>
+        
+        <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px;">
+            <p style="margin: 0; color: #155724; font-size: 14px;">Seu código de rastreio (ISO 10002):</p>
+            <h2 style="color: #155724; margin: 10px 0;">{{ codigo }}</h2>
+        </div>
 
-    <p>Guarde este código para consultar a resposta do restaurante futuramente.</p>
-    
-    <br>
-    <a href="/consultar">Ir para página de consulta</a> | 
-    <a href="/">Voltar ao início</a>
+        <p style="font-size: 13px; text-align: center; color: #555;">Guarde este código para consultar a resposta futuramente.</p>
+        
+        <a href="/consultar">
+            <button class="btn-enviar" style="background-color: #555;">Consultar Status</button>
+        </a>
+        <br><br>
+        <div style="text-align: center;">
+            <a href="/" style="color: #df6c4f; text-decoration: none; font-size: 14px;">Voltar ao início</a>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,7 +1,27 @@
-<h1>Acesso Restrito ao Administrador</h1>
-<form method="POST">
-    <label>Senha do Painel:</label>
-    <input type="password" name="senha" required>
-    <button type="submit">Entrar</button>
-</form>
-<a href="/">Voltar ao Início</a>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Login Administrativo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container-celular">
+        <h2 class="titulo-destaque">Acesso <span class="cor-destaque">Restrito</span></h2>
+        <p class="subtitulo">Painel do Administrador</p>
+
+        <form method="POST">
+            <div class="grupo-campo">
+                <label for="senha">Senha de Acesso:</label>
+                <input type="password" id="senha" name="senha" required>
+            </div>
+            
+            <button type="submit" class="btn-enviar">Entrar no Painel</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/" style="color: #df6c4f; text-decoration: none; font-size: 14px;">Voltar ao Início</a>
+        </div>
+    </div>
+</body>
+</html>

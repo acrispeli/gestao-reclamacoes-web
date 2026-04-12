@@ -1,22 +1,51 @@
-<h1>Consultar Status da Reclamação</h1>
-<form method="POST">
-    <input type="text" name="codigo" placeholder="Digite seu código (ex: 86fee298)" required>
-    <button type="submit">Buscar</button>
-</form>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Consultar Reclamação</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container-celular">
+        <h2 class="titulo-destaque">Acompanhar <span class="cor-destaque">Status</span></h2>
+        
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div style="color: red; text-align: center; margin-bottom: 15px; font-size: 14px;">
+              {% for message in messages %}
+                {{ message }}
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
 
-{% if reclamacao %}
-    <hr>
-    <h3>Detalhes:</h3>
-    <p><strong>Status:</strong> {{ reclamacao.status }}</p>
-    <p><strong>Sua Reclamação:</strong> {{ reclamacao.descricao_problema }}</p>
-    
-    {% if reclamacao.resposta_admin %}
-        <div style="background-color: #e1f5fe; padding: 10px;">
-            <p><strong>Resposta do Restaurante:</strong> {{ reclamacao.resposta_admin }}</p>
-            <small>Respondido em: {{ reclamacao.data_resposta.strftime('%d/%m/%Y') }}</small>
+        <form method="POST">
+            <div class="grupo-campo">
+                <label for="codigo">Código de Rastreio:</label>
+                <input type="text" id="codigo" name="codigo" placeholder="Ex: 86fee298" required>
+            </div>
+            <button type="submit" class="btn-enviar">Buscar</button>
+        </form>
+
+        {% if reclamacao %}
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+            <h3 style="color: #333; font-size: 16px;">Detalhes da Reclamação:</h3>
+            <p style="font-size: 14px; color: #555;"><strong>Status:</strong> <span style="color: #df6c4f;">{{ reclamacao.status }}</span></p>
+            <p style="font-size: 14px; color: #555;"><strong>Seu Relato:</strong> {{ reclamacao.descricao_problema }}</p>
+            
+            {% if reclamacao.resposta_admin %}
+                <div style="background-color: #e1f5fe; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                    <p style="font-size: 14px; color: #01579b; margin-top: 0;"><strong>Resposta da Empresa:</strong><br> {{ reclamacao.resposta_admin }}</p>
+                    <small style="color: #0277bd;">Respondido em: {{ reclamacao.data_resposta.strftime('%d/%m/%Y') }}</small>
+                </div>
+            {% else %}
+                <p style="font-size: 14px; color: #888; font-style: italic; margin-top: 15px;">Aguardando análise do administrador...</p>
+            {% endif %}
+        {% endif %}
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/" style="color: #df6c4f; text-decoration: none; font-size: 14px;">Voltar ao início</a>
         </div>
-    {% else %}
-        <p><em>Aguardando resposta do administrador...</em></p>
-    {% endif %}
-{% endif %}
-<br><a href="/">Voltar</a>
+    </div>
+</body>
+</html>

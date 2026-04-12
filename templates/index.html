@@ -1,25 +1,34 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Registro de Reclamação - ISO 10002</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Reclamações</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Sistema de Gestão de Reclamações</h1>
-    <h3>Nova Reclamação (Baseado na ISO 10002)</h3>
-    
-    <form action="/cadastrar" method="POST">
-        <label>Nome do Reclamante:</label><br>
-        <input type="text" name="nome" required><br><br>
+    <div class="container-celular">
+        <h2 class="titulo-destaque">Fale <span class="cor-destaque">Conosco</span></h2>
+        <p class="subtitulo">Sua opinião é muito importante!</p>
 
-        <label>Produto ou Serviço:</label><br>
-        <input type="text" name="produto" required><br><br>
+        <form action="/cadastrar" method="POST">
+            <div class="grupo-campo">
+                <label for="nome">Nome Completo</label>
+                <input type="text" id="nome" name="nome" required>
+            </div>
 
-        <label>Descrição do Problema:</label><br>
-        <textarea name="descricao" rows="5" required></textarea><br><br>
+            <div class="grupo-campo">
+                <label for="produto">Produto ou Serviço (Pedido/Mesa)</label>
+                <input type="text" id="produto" name="produto" required>
+            </div>
 
-        <button type="submit">Enviar Reclamação</button>
-    </form>
+            <div class="grupo-campo">
+                <label for="descricao">Descrição Detalhada do Problema:</label>
+                <textarea id="descricao" name="descricao" rows="4" required></textarea>
+            </div>
+
+            <button type="submit" class="btn-enviar">Enviar Reclamação</button>
+        </form>
+    </div>
 </body>
 </html>

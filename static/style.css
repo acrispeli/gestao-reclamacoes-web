@@ -1,0 +1,84 @@
+/* Configuração geral do fundo da tela */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+/* O "cartão" branco no centro da tela (Estilo Figma) */
+.container-celular {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    width: 100%;
+    max-width: 400px;
+}
+
+/* Título principal */
+.titulo-destaque {
+    text-align: center;
+    color: #333333;
+    margin-bottom: 5px;
+}
+
+/* A palavra em laranja no título */
+.cor-destaque {
+    color: #df6c4f;
+}
+
+/* Subtítulo menorzinho */
+.subtitulo {
+    text-align: center;
+    color: #777777;
+    font-size: 14px;
+    margin-bottom: 25px;
+}
+
+/* Espaçamento entre os campos do formulário */
+.grupo-campo {
+    margin-bottom: 15px;
+}
+
+/* Textos acima das caixinhas */
+.grupo-campo label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555555;
+    font-size: 14px;
+}
+
+/* Caixinhas de digitação */
+.grupo-campo input, 
+.grupo-campo textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    box-sizing: border-box; /* Garante que o padding não quebre o tamanho */
+    font-family: inherit;
+}
+
+/* O botão de enviar */
+.btn-enviar {
+    width: 100%;
+    padding: 12px;
+    background-color: #df6c4f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+/* Efeito ao passar o mouse no botão */
+.btn-enviar:hover {
+    background-color: #c55a40;
+}
