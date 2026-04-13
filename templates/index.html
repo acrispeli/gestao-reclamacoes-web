@@ -11,10 +11,20 @@
         <h2 class="titulo-destaque">Fale <span class="cor-destaque">Conosco</span></h2>
         <p class="subtitulo">Sua opinião é muito importante!</p>
 
-        <form action="/cadastrar" method="POST">
+        <form action="/cadastrar" method="POST" enctype="multipart/form-data">
             <div class="grupo-campo">
                 <label for="nome">Nome Completo</label>
                 <input type="text" id="nome" name="nome" required>
+            </div>
+
+            <div class="grupo-campo">
+                <label for="email">E-mail para Contato</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="grupo-campo">
+                <label for="telefone">Telefone/WhatsApp</label>
+                <input type="tel" id="telefone" name="telefone" required>
             </div>
 
             <div class="grupo-campo">
@@ -27,8 +37,91 @@
                 <textarea id="descricao" name="descricao" rows="4" required></textarea>
             </div>
 
+            <div class="grupo-campo">
+                <label for="foto">Anexar ou Tirar Fotos (Opcional)</label>
+                <input type="file" id="foto" name="foto" accept="image/*" multiple>
+                <div id="preview-container" style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;"></div>
+
+<script>
+    // Nossa "sacola virtual" de arquivos
+    let listaArquivosGlobal = new DataTransfer();
+    const inputFoto = document.getElementById('foto');
+    const container = document.getElementById('preview-container');
+
+    inputFoto.addEventListener('change', function() {
+        // 1. Adiciona os novos arquivos selecionados à nossa sacola global
+        Array.from(this.files).forEach(file => {
+            listaArquivosGlobal.items.add(file);
+        });
+
+        // 2. Atualiza o input real com todos os arquivos da sacola
+        // Isso garante que o Flask receba a lista completa no POST
+        this.files = listaArquivosGlobal.files;
+
+        // 3. Renderiza as miniaturas novamente
+        renderizarPrevia();
+    });
+
+    function renderizarPrevia() {
+        container.innerHTML = ''; // Limpa para redesenhar tudo acumulado
+
+        Array.from(listaArquivosGlobal.files).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const divWrapper = document.createElement('div');
+                divWrapper.style.position = 'relative';
+
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.style.width = '80px';
+                img.style.height = '80px';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '8px';
+                img.style.border = '1px solid #ddd';
+
+                // BÔNUS: Botão para remover uma foto específica se o cliente errar
+                const btnRemover = document.createElement('span');
+                btnRemover.innerHTML = '×';
+                btnRemover.style.cssText = `
+                    position: absolute; top: -5px; right: -5px;
+                    background: red; color: white; border-radius: 50%;
+                    width: 20px; height: 20px; display: flex;
+                    justify-content: center; align-items: center;
+                    cursor: pointer; font-size: 14px; font-weight: bold;
+                `;
+                
+                btnRemover.onclick = () => removerFoto(index);
+
+                divWrapper.appendChild(img);
+                divWrapper.appendChild(btnRemover);
+                container.appendChild(divWrapper);
+            }
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function removerFoto(index) {
+        const novaLista = new DataTransfer();
+        const arquivosAtuais = Array.from(listaArquivosGlobal.files);
+        
+        // Remove o arquivo pelo índice
+        arquivosAtuais.splice(index, 1);
+        
+        // Reconstrói a sacola sem o arquivo removido
+        arquivosAtuais.forEach(file => novaLista.items.add(file));
+        
+        listaArquivosGlobal = novaLista;
+        inputFoto.files = listaArquivosGlobal.files;
+        renderizarPrevia();
+    }
+</script>
+            </div>
+
             <button type="submit" class="btn-enviar">Enviar Reclamação</button>
         </form>
+        <div class="link-secundario">
+            <p>Já possui um protocolo? <a href="{{ url_for('consultar') }}">Consulte o status aqui</a></p>
+        </div>
     </div>
 </body>
 </html>

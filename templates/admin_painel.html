@@ -4,40 +4,87 @@
     <meta charset="UTF-8">
     <title>Painel Administrativo - ISO 10002</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Estilos específicos para o painel de visualização de fotos */
+        .foto-miniatura {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .foto-miniatura:hover {
+            transform: scale(2.5); /* Zoom básico ao passar o mouse */
+            position: relative;
+            z-index: 10;
+        }
+        .container-fotos {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            max-width: 120px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container-celular" style="max-width: 900px;">
-        <h2 class="titulo-destaque">Painel de <span class="cor-destaque">Gestão</span></h2>
+    <div class="container-celular" style="max-width: 1100px;"> <h2 class="titulo-destaque">Painel de <span class="cor-destaque">Gestão</span></h2>
         <p class="subtitulo">Controle de Reclamações - ISO 10002</p>
 
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px;">
                 <thead>
                     <tr style="background-color: #f4f4f9; border-bottom: 2px solid #ddd;">
-                        <th style="padding: 12px; font-size: 14px; color: #555;">Código</th>
-                        <th style="padding: 12px; font-size: 14px; color: #555;">Cliente</th>
-                        <th style="padding: 12px; font-size: 14px; color: #555;">Descrição</th>
-                        <th style="padding: 12px; font-size: 14px; color: #555;">Resposta Atual</th>
-                        <th style="padding: 12px; font-size: 14px; color: #555;">Ação</th>
+                        <th style="padding: 12px; font-size: 13px; color: #555;">Código</th>
+                        <th style="padding: 12px; font-size: 13px; color: #555;">Cliente</th>
+                        <th style="padding: 12px; font-size: 13px; color: #555;">Contato</th>
+                        <th style="padding: 12px; font-size: 13px; color: #555;">Descrição</th>
+                        <th style="padding: 12px; font-size: 13px; color: #555;">Evidências</th>
+                        <th style="padding: 12px; font-size: 13px; color: #555;">Resposta</th>
+                        <th style="padding: 12px; font-size: 13px; color: #555;">Ação</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in reclamacoes %}
                     <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 12px; font-size: 14px;"><strong>{{ r.codigo_unico }}</strong></td>
-                        <td style="padding: 12px; font-size: 14px;">{{ r.nome_cliente }}</td>
-                        <td style="padding: 12px; font-size: 14px;">{{ r.descricao_problema }}</td>
-                        <td style="padding: 12px; font-size: 14px;">
+                        <td style="padding: 12px; font-size: 13px;"><strong>{{ r.codigo_unico }}</strong></td>
+                        <td style="padding: 12px; font-size: 13px;">{{ r.nome_cliente }}</td>
+                        
+                        <td style="padding: 12px; font-size: 12px; line-height: 1.4;">
+                            <span style="display:block; color: #666;">{{ r.email_cliente }}</span>
+                            <span style="font-weight: bold;">{{ r.telefone_cliente }}</span>
+                        </td>
+
+                        <td style="padding: 12px; font-size: 13px; max-width: 200px;">{{ r.descricao_problema }}</td>
+                        
+                        <td style="padding: 12px;">
+                            <div class="container-fotos">
+                                {% if r.fotos %}
+                                    {% for foto in r.fotos %}
+                                        <img src="{{ url_for('static', filename='uploads/' + foto.caminho_arquivo) }}" 
+                                             class="foto-miniatura" 
+                                             alt="Evidência">
+                                    {% endfor %}
+                                {% else %}
+                                    <span style="color: #ccc; font-size: 11px;">Sem anexo</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <td style="padding: 12px; font-size: 13px;">
                             {% if r.resposta_admin %}
-                                <span style="color: #28a745;">{{ r.resposta_admin }}</span>
+                                <span style="color: #28a745; font-weight: bold;">Respondido:</span>
+                                <p style="margin: 5px 0 0 0; color: #555; font-style: italic;">"{{ r.resposta_admin }}"</p>
                             {% else %}
-                                <span style="color: #df6c4f;">Pendente</span>
+                                <span style="color: #df6c4f; font-weight: bold;">Pendente</span>
                             {% endif %}
                         </td>
+
                         <td style="padding: 12px;">
                             <form action="/responder/{{ r.id }}" method="POST" style="display: flex; gap: 5px;">
-                                <input type="text" name="resposta" placeholder="Escreva a resposta..." style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%;" required>
-                                <button type="submit" style="background-color: #555; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Enviar</button>
+                                <input type="text" name="resposta" placeholder="Responder..." style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; width: 120px;" required>
+                                <button type="submit" style="background-color: #555; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">Enviar</button>
                             </form>
                         </td>
                     </tr>
@@ -46,9 +93,10 @@
             </table>
         </div>
 
-        <div style="text-align: right;">
-            <a href="/" style="color: #df6c4f; text-decoration: none; font-size: 14px; font-weight: bold;">Sair do Painel</a>
+        <div style="text-align: right; margin-top: 20px;">
+            <a href="{{ url_for('admin_logout') }}" style="color: #df6c4f; text-decoration: none; font-size: 14px; font-weight: bold;">Sair do Painel</a>
         </div>
+        
     </div>
 </body>
 </html>

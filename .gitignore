@@ -1,18 +1,6 @@
-# Ambiente Virtual (ignora a pasta pesada que você ativou)
-.venv/
-venv/
-env/
-
-# Arquivos temporários do Python (compilados)
+.env
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-
-# Banco de dados local (geralmente não enviamos o arquivo .db bruto para o Git)
-instance/
-*.db
-
-# Configurações de IDE
-.vscode/
-.idea/
+.venv/
+static/uploads/*
+!static/uploads/.gitkeep
