@@ -1,6 +1,7 @@
 import os
 import smtplib
 import uuid
+import threading # O ajudante invisível
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -11,7 +12,6 @@ from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 
-# Carrega as variáveis do arquivo .env (Local) ou Environment do Render
 load_dotenv()
 
 app = Flask(__name__)
@@ -25,20 +25,19 @@ cloudinary.config(
     secure = True
 )
 
-# --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN COM SSL) ---
+# --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN) ---
 path_to_ca = os.path.join(os.getcwd(), 'ca.pem')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "connect_args": {
-        "ssl": {"ca": path_to_ca}
-    }
+    "connect_args": {"ssl": {"ca": path_to_ca}}
 }
 
 db = SQLAlchemy(app)
 
-# --- FUNÇÃO AUXILIAR: ENVIO DE E-MAIL (BREVO) ---
+# --- FUNÇÃO DE ENVIO (O BREVO CONTINUA AQUI) ---
 def enviar_email(destinatario, assunto, corpo_html):
+    # Esta função agora roda "escondida" sem travar o site
     server_smtp = os.environ.get('SMTP_SERVER')
     port_smtp = int(os.environ.get('SMTP_PORT', 587))
     user_smtp = os.environ.get('SMTP_USER')
@@ -52,15 +51,13 @@ def enviar_email(destinatario, assunto, corpo_html):
         msg['Subject'] = assunto
         msg.attach(MIMEText(corpo_html, 'html'))
 
-        # Timeout de 10 segundos para evitar travar o Render se o Brevo estiver lento
-        with smtplib.SMTP(server_smtp, port_smtp, timeout=10) as server:
+        with smtplib.SMTP(server_smtp, port_smtp, timeout=15) as server:
             server.starttls()
             server.login(user_smtp, pass_smtp)
             server.send_message(msg)
-        return True
+        print(f"Sucesso: E-mail enviado para {destinatario}")
     except Exception as e:
-        print(f"ERRO NO ENVIO DE E-MAIL: {e}")
-        return False
+        print(f"Erro no envio de e-mail (Background): {e}")
 
 # --- MODELOS ---
 class Reclamacao(db.Model):
@@ -106,12 +103,12 @@ def cadastrar():
     descricao = request.form.get('descricao')
     
     try:
-        # 1. Salva a reclamação
+        # 1. Salva no banco (Aiven)
         nova = Reclamacao(nome, email, telefone, produto, descricao)
         db.session.add(nova)
         db.session.commit()
 
-        # 2. Upload de fotos (se houver)
+        # 2. Upload para Nuvem (Cloudinary)
         if 'foto' in request.files:
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
@@ -121,20 +118,41 @@ def cadastrar():
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # 3. Tentativa de envio de e-mail (com proteção contra erros)
-        try:
-            assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
-            corpo = f"<h3>Olá, {nome}!</h3><p>Sua solicitação foi registrada: <strong>{nova.codigo_unico}</strong></p>"
-            enviar_email(email, assunto, corpo)
-        except Exception as e:
-            print(f"Alerta: E-mail de protocolo não enviado: {e}")
+        # 3. DISPARO ASSÍNCRONO (BREVO)
+        # O Thread permite que o e-mail tente ser enviado "atrás das cortinas"
+        assunto = f"Pizzaria Regalo - Protocolo: {nova.codigo_unico}"
+        corpo = f"<h3>Olá, {nome}!</h3><p>Sua reclamação foi registrada: <strong>{nova.codigo_unico}</strong></p>"
+        
+        threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
 
+        # 4. Resposta imediata para o cliente
         return render_template('sucesso.html', codigo=nova.codigo_unico)
 
     except Exception as e:
         db.session.rollback()
-        print(f"Erro Crítico: {e}")
         return f"Erro ao processar: {e}"
+
+@app.route('/responder/<int:id>', methods=['POST'])
+def responder(id):
+    if not session.get('admin_logado'): return redirect(url_for('admin_painel'))
+    
+    reclamacao = Reclamacao.query.get(id)
+    if reclamacao:
+        resposta = request.form.get('resposta')
+        reclamacao.resposta_admin = resposta
+        reclamacao.data_resposta = datetime.now()
+        reclamacao.status = 'Respondido'
+        db.session.commit()
+
+        # Notificação em segundo plano
+        assunto = f"Sua reclamação foi respondida! - {reclamacao.codigo_unico}"
+        corpo = f"<h3>Olá, {reclamacao.nome_cliente}!</h3><p>Resposta: {resposta}</p>"
+        
+        threading.Thread(target=enviar_email, args=(reclamacao.email_cliente, assunto, corpo)).start()
+
+    return redirect(url_for('admin_painel'))
+
+# ... (outras rotas: consultar, admin, sair) ...
 
 @app.route('/consultar', methods=['GET', 'POST'])
 def consultar():
@@ -159,28 +177,6 @@ def admin_painel():
         reclamacoes = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).all()
         return render_template('admin_painel.html', reclamacoes=reclamacoes)
     return render_template('admin_login.html')
-
-@app.route('/responder/<int:id>', methods=['POST'])
-def responder(id):
-    if not session.get('admin_logado'): return redirect(url_for('admin_painel'))
-    
-    reclamacao = Reclamacao.query.get(id)
-    if reclamacao:
-        resposta = request.form.get('resposta')
-        reclamacao.resposta_admin = resposta
-        reclamacao.data_resposta = datetime.now()
-        reclamacao.status = 'Respondido'
-        db.session.commit()
-
-        # Tentativa de envio de e-mail de resposta
-        try:
-            assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
-            corpo = f"<h3>Olá, {reclamacao.nome_cliente}!</h3><p>Resposta: {resposta}</p>"
-            enviar_email(reclamacao.email_cliente, assunto, corpo)
-        except Exception as e:
-            print(f"Alerta: E-mail de resposta não enviado: {e}")
-
-    return redirect(url_for('admin_painel'))
 
 @app.route('/admin/sair')
 def admin_logout():
