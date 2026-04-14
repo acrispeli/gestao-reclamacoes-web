@@ -47,18 +47,19 @@ def enviar_email(destinatario, assunto, corpo_html):
 
     try:
         msg = MIMEMultipart()
-        msg['From'] = f"Pizzaria XYZ <{remetente}>"
+        msg['From'] = f"Atendimento Pizzaria <{remetente}>"
         msg['To'] = destinatario
         msg['Subject'] = assunto
         msg.attach(MIMEText(corpo_html, 'html'))
 
-        with smtplib.SMTP(server_smtp, port_smtp) as server:
+        # Timeout de 10 segundos para evitar travar o Render se o Brevo estiver lento
+        with smtplib.SMTP(server_smtp, port_smtp, timeout=10) as server:
             server.starttls()
             server.login(user_smtp, pass_smtp)
             server.send_message(msg)
         return True
     except Exception as e:
-        print(f"Erro ao enviar e-mail: {e}")
+        print(f"ERRO NO ENVIO DE E-MAIL: {e}")
         return False
 
 # --- MODELOS ---
@@ -105,10 +106,12 @@ def cadastrar():
     descricao = request.form.get('descricao')
     
     try:
+        # 1. Salva a reclamação
         nova = Reclamacao(nome, email, telefone, produto, descricao)
         db.session.add(nova)
         db.session.commit()
 
+        # 2. Upload de fotos (se houver)
         if 'foto' in request.files:
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
@@ -118,19 +121,19 @@ def cadastrar():
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # DISPARO DE E-MAIL: CONFIRMAÇÃO DE PROTOCOLO
-        assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
-        corpo = f"""
-            <h3>Olá, {nome}!</h3>
-            <p>Sua solicitação foi registrada com sucesso!</p>
-            <p><strong>Seu Protocolo:</strong> {nova.codigo_unico}</p>
-            <p>Utilize este código para consultar o status do seu atendimento em nosso site.</p>
-        """
-        enviar_email(email, assunto, corpo)
+        # 3. Tentativa de envio de e-mail (com proteção contra erros)
+        try:
+            assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
+            corpo = f"<h3>Olá, {nome}!</h3><p>Sua solicitação foi registrada: <strong>{nova.codigo_unico}</strong></p>"
+            enviar_email(email, assunto, corpo)
+        except Exception as e:
+            print(f"Alerta: E-mail de protocolo não enviado: {e}")
 
         return render_template('sucesso.html', codigo=nova.codigo_unico)
+
     except Exception as e:
         db.session.rollback()
+        print(f"Erro Crítico: {e}")
         return f"Erro ao processar: {e}"
 
 @app.route('/consultar', methods=['GET', 'POST'])
@@ -169,15 +172,13 @@ def responder(id):
         reclamacao.status = 'Respondido'
         db.session.commit()
 
-        # DISPARO DE E-MAIL: NOTIFICAÇÃO DE RESPOSTA
-        assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
-        corpo = f"""
-            <h3>Olá, {reclamacao.nome_cliente}!</h3>
-            <p>Sua solicitação foi analisada pela nossa equipe.</p>
-            <p><strong>Resposta da Administração:</strong> {resposta}</p>
-            <p>Agradecemos seu feedback, ele é essencial para nossa melhoria contínua.</p>
-        """
-        enviar_email(reclamacao.email_cliente, assunto, corpo)
+        # Tentativa de envio de e-mail de resposta
+        try:
+            assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
+            corpo = f"<h3>Olá, {reclamacao.nome_cliente}!</h3><p>Resposta: {resposta}</p>"
+            enviar_email(reclamacao.email_cliente, assunto, corpo)
+        except Exception as e:
+            print(f"Alerta: E-mail de resposta não enviado: {e}")
 
     return redirect(url_for('admin_painel'))
 
