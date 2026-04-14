@@ -1,17 +1,21 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+import smtplib
 import uuid
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask_sqlalchemy import SQLAlchemy
 
-# Carrega as variáveis do arquivo .env
+# Carrega as variáveis do arquivo .env (Local) ou Environment do Render
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'chave_padrao_desenvolvimento')
+app.secret_key = os.environ.get('SECRET_KEY', 'chave_padrao_pizzaria_2026')
 
 # --- CONFIGURAÇÃO CLOUDINARY ---
 cloudinary.config(
@@ -22,25 +26,42 @@ cloudinary.config(
 )
 
 # --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN COM SSL) ---
-# O caminho para o certificado CA que você baixou
 path_to_ca = os.path.join(os.getcwd(), 'ca.pem')
-
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Configuração de SSL obrigatória para o Aiven
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "connect_args": {
-        "ssl": {
-            "ca": path_to_ca
-        }
+        "ssl": {"ca": path_to_ca}
     }
 }
 
 db = SQLAlchemy(app)
 
-# --- MODELOS ---
+# --- FUNÇÃO AUXILIAR: ENVIO DE E-MAIL (BREVO) ---
+def enviar_email(destinatario, assunto, corpo_html):
+    server_smtp = os.environ.get('SMTP_SERVER')
+    port_smtp = int(os.environ.get('SMTP_PORT', 587))
+    user_smtp = os.environ.get('SMTP_USER')
+    pass_smtp = os.environ.get('SMTP_PASS')
+    remetente = os.environ.get('EMAIL_REMETENTE')
 
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"Pizzaria XYZ <{remetente}>"
+        msg['To'] = destinatario
+        msg['Subject'] = assunto
+        msg.attach(MIMEText(corpo_html, 'html'))
+
+        with smtplib.SMTP(server_smtp, port_smtp) as server:
+            server.starttls()
+            server.login(user_smtp, pass_smtp)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Erro ao enviar e-mail: {e}")
+        return False
+
+# --- MODELOS ---
 class Reclamacao(db.Model):
     __tablename__ = 'reclamacoes'
     id = db.Column(db.Integer, primary_key=True)
@@ -54,7 +75,6 @@ class Reclamacao(db.Model):
     status = db.Column(db.String(20), default='Pendente')
     resposta_admin = db.Column(db.Text, nullable=True)
     data_resposta = db.Column(db.DateTime, nullable=True)
-
     fotos = db.relationship('FotoReclamacao', backref='reclamacao', lazy=True)
 
     def __init__(self, nome_cliente, email_cliente, telefone_cliente, produto_servico, descricao_problema):
@@ -69,10 +89,9 @@ class FotoReclamacao(db.Model):
     __tablename__ = 'fotos_reclamacao'
     id = db.Column(db.Integer, primary_key=True)
     reclamacao_id = db.Column(db.Integer, db.ForeignKey('reclamacoes.id'), nullable=False)
-    caminho_arquivo = db.Column(db.String(255), nullable=False) # Agora guardará a URL do Cloudinary
+    caminho_arquivo = db.Column(db.String(255), nullable=False)
 
 # --- ROTAS ---
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -94,15 +113,20 @@ def cadastrar():
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
                 if arquivo and arquivo.filename != '':
-                    # UPLOAD PARA O CLOUDINARY
                     upload_result = cloudinary.uploader.upload(arquivo, folder="reclamacoes_pizzaria")
-                    # PEGA A URL GERADA PELA NUVEM
-                    url_imagem = upload_result['secure_url']
-                    
-                    nova_foto = FotoReclamacao(reclamacao_id=nova.id, caminho_arquivo=url_imagem)
+                    nova_foto = FotoReclamacao(reclamacao_id=nova.id, caminho_arquivo=upload_result['secure_url'])
                     db.session.add(nova_foto)
-            
             db.session.commit()
+
+        # DISPARO DE E-MAIL: CONFIRMAÇÃO DE PROTOCOLO
+        assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
+        corpo = f"""
+            <h3>Olá, {nome}!</h3>
+            <p>Sua solicitação foi registrada com sucesso!</p>
+            <p><strong>Seu Protocolo:</strong> {nova.codigo_unico}</p>
+            <p>Utilize este código para consultar o status do seu atendimento em nosso site.</p>
+        """
+        enviar_email(email, assunto, corpo)
 
         return render_template('sucesso.html', codigo=nova.codigo_unico)
     except Exception as e:
@@ -119,30 +143,19 @@ def consultar():
             flash('Código não encontrado.')
     return render_template('consultar.html', reclamacao=reclamacao)
 
-# --- ADMIN ---
-
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_painel():
     admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin_padrao')
-    
     if request.method == 'POST':
-        senha = request.form.get('senha')
-        if senha == admin_pass:
+        if request.form.get('senha') == admin_pass:
             session['admin_logado'] = True
             return redirect(url_for('admin_painel'))
-        else:
-            flash('Senha incorreta!')
+        flash('Senha incorreta!')
     
     if session.get('admin_logado'):
         reclamacoes = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).all()
         return render_template('admin_painel.html', reclamacoes=reclamacoes)
-    
     return render_template('admin_login.html')
-
-@app.route('/admin/sair')
-def admin_logout():
-    session.pop('admin_logado', None)
-    return redirect(url_for('admin_painel'))
 
 @app.route('/responder/<int:id>', methods=['POST'])
 def responder(id):
@@ -150,12 +163,31 @@ def responder(id):
     
     reclamacao = Reclamacao.query.get(id)
     if reclamacao:
-        reclamacao.resposta_admin = request.form.get('resposta')
+        resposta = request.form.get('resposta')
+        reclamacao.resposta_admin = resposta
         reclamacao.data_resposta = datetime.now()
         reclamacao.status = 'Respondido'
         db.session.commit()
+
+        # DISPARO DE E-MAIL: NOTIFICAÇÃO DE RESPOSTA
+        assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
+        corpo = f"""
+            <h3>Olá, {reclamacao.nome_cliente}!</h3>
+            <p>Sua solicitação foi analisada pela nossa equipe.</p>
+            <p><strong>Resposta da Administração:</strong> {resposta}</p>
+            <p>Agradecemos seu feedback, ele é essencial para nossa melhoria contínua.</p>
+        """
+        enviar_email(reclamacao.email_cliente, assunto, corpo)
+
+    return redirect(url_for('admin_painel'))
+
+@app.route('/admin/sair')
+def admin_logout():
+    session.pop('admin_logado', None)
     return redirect(url_for('admin_painel'))
 
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
