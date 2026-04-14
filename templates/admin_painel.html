@@ -26,10 +26,16 @@
             flex-wrap: wrap;
             max-width: 120px;
         }
+        /* Ajuste para links nas imagens */
+        .link-foto {
+            text-decoration: none;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
-    <div class="container-celular" style="max-width: 1100px;"> <h2 class="titulo-destaque">Painel de <span class="cor-destaque">Gestão</span></h2>
+    <div class="container-celular" style="max-width: 1150px;"> 
+        <h2 class="titulo-destaque">Painel de <span class="cor-destaque">Gestão</span></h2>
         <p class="subtitulo">Controle de Reclamações - ISO 10002</p>
 
         <div style="overflow-x: auto;">
@@ -62,9 +68,11 @@
                             <div class="container-fotos">
                                 {% if r.fotos %}
                                     {% for foto in r.fotos %}
-                                        <img src="{{ url_for('static', filename='uploads/' + foto.caminho_arquivo) }}" 
-                                             class="foto-miniatura" 
-                                             alt="Evidência">
+                                        <a href="{{ foto.caminho_arquivo }}" target="_blank" class="link-foto" title="Clique para ampliar">
+                                            <img src="{{ foto.caminho_arquivo }}" 
+                                                 class="foto-miniatura" 
+                                                 alt="Evidência Cloudinary">
+                                        </a>
                                     {% endfor %}
                                 {% else %}
                                     <span style="color: #ccc; font-size: 11px;">Sem anexo</span>
