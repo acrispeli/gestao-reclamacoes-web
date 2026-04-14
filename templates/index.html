@@ -123,5 +123,26 @@
             <p>Já possui um protocolo? <a href="{{ url_for('consultar') }}">Consulte o status aqui</a></p>
         </div>
     </div>
-</body>
-</html>
+<div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">
+            Estamos registrando sua solicitação... <br> 
+            Isso pode levar alguns segundos.
+        </div>
+    </div>
+
+    <script>
+        document.querySelector('form').addEventListener('submit', function() {
+            // 1. Mostra o overlay
+            document.getElementById('loading-overlay').style.display = 'flex';
+            
+            // 2. Desativa o botão de envio para evitar cliques duplos e erros no banco
+            const btn = document.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "Enviando...";
+            }
+        });
+    </script>
+
+</body> </html>
