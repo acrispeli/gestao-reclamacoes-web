@@ -1,0 +1,15 @@
+name: Manter App Acordado
+
+on:
+  schedule:
+    # O cron abaixo roda a cada 14 minutos
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Permite que você rode manualmente para testar
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enviando o sinal para a Pizzaria XYZ
+        run: |
+          curl -I https://atendimento-pizzaria.onrender.com/
