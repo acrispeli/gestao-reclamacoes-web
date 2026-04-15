@@ -3,9 +3,10 @@ import uuid
 import threading
 from datetime import datetime
 
+import pytz  # Biblioteca para manipulação de fuso horário
 import cloudinary
 import cloudinary.uploader
-import sib_api_v3_sdk  # SDK oficial do Brevo
+import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, session, url_for
@@ -17,12 +18,15 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# --- CONFIGURAÇÃO DE FUSO HORÁRIO (Brasília) ---
+fuso_horario = pytz.timezone('America/Sao_Paulo')
+
 # --- SEGURANÇA E CONFIGURAÇÃO FLASK ---
 app.secret_key = os.environ.get('SECRET_KEY', 'pizzaria_xyz_2026_safe')
 
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=True,  # Essencial para o HTTPS do Render
+    SESSION_COOKIE_SECURE=True,  
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
@@ -53,7 +57,6 @@ def enviar_email(destinatario, assunto, corpo_html):
     api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
     
     remetente_email = os.environ.get('EMAIL_REMETENTE')
-    # Identidade visual definida como Pizzaria XYZ
     remetente = {"name": "Pizzaria XYZ", "email": remetente_email}
     
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
@@ -69,7 +72,7 @@ def enviar_email(destinatario, assunto, corpo_html):
     except ApiException as e:
         print(f"Erro na API do Brevo (Background): {e}")
 
-# --- MODELOS (SQLAlchemy) ---
+# --- MODELOS ---
 class Reclamacao(db.Model):
     __tablename__ = 'reclamacoes'
     id = db.Column(db.Integer, primary_key=True)
@@ -79,7 +82,10 @@ class Reclamacao(db.Model):
     telefone_cliente = db.Column(db.String(20), nullable=False)
     produto_servico = db.Column(db.String(100), nullable=False)
     descricao_problema = db.Column(db.Text, nullable=False)
-    data_abertura = db.Column(db.DateTime, default=datetime.now)
+    
+    # Garantimos que o default da coluna chame o fuso de SP
+    data_abertura = db.Column(db.DateTime, default=lambda: datetime.now(fuso_horario))
+    
     status = db.Column(db.String(20), default='Pendente')
     resposta_admin = db.Column(db.Text, nullable=True)
     data_resposta = db.Column(db.DateTime, nullable=True)
@@ -92,6 +98,8 @@ class Reclamacao(db.Model):
         self.produto_servico = produto_servico
         self.descricao_problema = descricao_problema
         self.codigo_unico = str(uuid.uuid4())[:8]
+        # Forçamos a data no momento da inicialização para o fuso correto
+        self.data_abertura = datetime.now(fuso_horario)
 
 class FotoReclamacao(db.Model):
     __tablename__ = 'fotos_reclamacao'
@@ -99,7 +107,7 @@ class FotoReclamacao(db.Model):
     reclamacao_id = db.Column(db.Integer, db.ForeignKey('reclamacoes.id'), nullable=False)
     caminho_arquivo = db.Column(db.String(255), nullable=False)
 
-# --- ROTAS DO SISTEMA ---
+# --- ROTAS ---
 
 @app.route('/')
 def index():
@@ -118,7 +126,6 @@ def cadastrar():
         db.session.add(nova)
         db.session.commit()
 
-        # Upload de fotos com secure_filename
         if 'foto' in request.files:
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
@@ -129,14 +136,14 @@ def cadastrar():
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # E-MAIL DE CONFIRMAÇÃO (CLIENTE) - Pizzaria XYZ
+        # E-mail formatado conforme solicitado
         assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
         corpo = f"""
             <h3>Olá, {nome}!</h3>
             <p>Sua solicitação foi registrada com sucesso!</p>
             <p><strong>Seu Protocolo:</strong> {nova.codigo_unico}</p>
             <p>Utilize este código para consultar o status do seu atendimento em nosso site.</p>
-            <p><a href='https://atendimento-pizzaria.onrender.com/consultar'>https://atendimento-pizzaria.onrender.com/consultar</a></p>
+            <p><a href='https://atendimento-pizzaria.onrender.com/consultar'>Consultar Atendimento</a></p>
         """
         threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
 
@@ -165,7 +172,6 @@ def admin_painel():
         flash('Senha incorreta!')
     
     if session.get('admin_logado'):
-        # Paginação Dinâmica
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         
@@ -184,11 +190,10 @@ def responder(id):
     if reclamacao:
         resposta = request.form.get('resposta')
         reclamacao.resposta_admin = resposta
-        reclamacao.data_resposta = datetime.now()
+        reclamacao.data_resposta = datetime.now(fuso_horario) # Data da resposta localizada
         reclamacao.status = 'Respondido'
         db.session.commit()
 
-        # E-MAIL DE RESPOSTA (ADMINISTRAÇÃO) - Pizzaria XYZ
         assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
         corpo = f"""
             <h3>Olá, {reclamacao.nome_cliente}!</h3>
