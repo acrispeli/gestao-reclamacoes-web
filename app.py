@@ -18,13 +18,11 @@ load_dotenv()
 app = Flask(__name__)
 
 # --- SEGURANÇA E CONFIGURAÇÃO FLASK ---
-# Puxa a chave do ambiente; se não houver, usa uma string de segurança (mude no Render!)
 app.secret_key = os.environ.get('SECRET_KEY', 'pizzaria_regalo_2026_seguranca_total')
 
-# Configurações de Cookie para proteção contra ataques comuns
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=True,  # Ativa para HTTPS no Render
+    SESSION_COOKIE_SECURE=True,  
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
@@ -54,9 +52,9 @@ db = SQLAlchemy(app)
 def enviar_email(destinatario, assunto, corpo_html):
     api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
     
-    # O remetente DEVE ser o e-mail validado no seu painel do Brevo
     remetente_email = os.environ.get('EMAIL_REMETENTE')
-    remetente = {"name": "Pizzaria Regalo", "email": remetente_email}
+    # Nome do remetente alterado para Pizzaria XYZ
+    remetente = {"name": "Pizzaria XYZ", "email": remetente_email}
     
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
         to=[{"email": destinatario}],
@@ -123,15 +121,20 @@ def cadastrar():
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
                 if arquivo and arquivo.filename != '':
-                    # Limpeza básica do nome do arquivo por segurança
                     upload_result = cloudinary.uploader.upload(arquivo, folder="reclamacoes_pizzaria")
                     nova_foto = FotoReclamacao(reclamacao_id=nova.id, caminho_arquivo=upload_result['secure_url'])
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # Disparo assíncrono para agilidade total do site
-        assunto = f"Protocolo Pizzaria: {nova.codigo_unico}"
-        corpo = f"<h3>Olá, {nome}!</h3><p>Sua queixa foi registrada. Protocolo: <strong>{nova.codigo_unico}</strong></p>"
+        # DISPARO DE E-MAIL: CONFIRMAÇÃO DE PROTOCOLO
+        assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
+        corpo = f"""
+            <h3>Olá, {nome}!</h3>
+            <p>Sua solicitação foi registrada com sucesso!</p>
+            <p><strong>Seu Protocolo:</strong> {nova.codigo_unico}</p>
+            <p>Utilize este código para consultar o status do seu atendimento em nosso site.</p>
+            <p><a href='https://atendimento-pizzaria.onrender.com/consultar'>https://atendimento-pizzaria.onrender.com/consultar</a></p>
+        """
         threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
 
         return render_template('sucesso.html', codigo=nova.codigo_unico)
@@ -155,7 +158,6 @@ def admin_painel():
     if request.method == 'POST':
         if request.form.get('senha') == admin_pass:
             session['admin_logado'] = True
-            # Força renovação da sessão para segurança
             session.permanent = True 
             return redirect(url_for('admin_painel'))
         flash('Senha incorreta!')
@@ -178,9 +180,14 @@ def responder(id):
         reclamacao.status = 'Respondido'
         db.session.commit()
 
-        # Resposta enviada em segundo plano
-        assunto = f"Resposta à sua solicitação - {reclamacao.codigo_unico}"
-        corpo = f"<h3>Olá, {reclamacao.nome_cliente}!</h3><p>Sua queixa foi analisada pela gestão: <br><strong>{resposta}</strong></p>"
+        # DISPARO DE E-MAIL: NOTIFICAÇÃO DE RESPOSTA
+        assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
+        corpo = f"""
+            <h3>Olá, {reclamacao.nome_cliente}!</h3>
+            <p>Sua solicitação foi analisada pela nossa equipe.</p>
+            <p><strong>Resposta da Administração:</strong> {resposta}</p>
+            <p>Agradecemos seu feedback, ele é essencial para nossa melhoria contínua.</p>
+        """
         threading.Thread(target=enviar_email, args=(reclamacao.email_cliente, assunto, corpo)).start()
 
     return redirect(url_for('admin_painel'))
