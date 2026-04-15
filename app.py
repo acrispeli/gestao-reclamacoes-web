@@ -1,21 +1,23 @@
 import os
-import smtplib
 import uuid
-import threading # O ajudante invisível
+import threading
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 import cloudinary
 import cloudinary.uploader
+import resend  # Mantendo a API do Resend
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 
+# Carrega as variáveis do arquivo .env
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'chave_padrao_pizzaria_2026')
+
+# --- CONFIGURAÇÃO RESEND ---
+resend.api_key = os.environ.get('RESEND_API_KEY', 're_bhxgxbvp_517QPo9ms4aVJXcDCMpaymfR')
 
 # --- CONFIGURAÇÃO CLOUDINARY ---
 cloudinary.config(
@@ -25,39 +27,33 @@ cloudinary.config(
     secure = True
 )
 
-# --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN) ---
+# --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN COM SSL) ---
 path_to_ca = os.path.join(os.getcwd(), 'ca.pem')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "connect_args": {"ssl": {"ca": path_to_ca}}
+    "connect_args": {
+        "ssl": {"ca": path_to_ca}
+    }
 }
 
 db = SQLAlchemy(app)
 
-# --- FUNÇÃO DE ENVIO (O BREVO CONTINUA AQUI) ---
+# --- FUNÇÃO DE ENVIO VIA RESEND API ---
 def enviar_email(destinatario, assunto, corpo_html):
-    # Esta função agora roda "escondida" sem travar o site
-    server_smtp = os.environ.get('SMTP_SERVER')
-    port_smtp = int(os.environ.get('SMTP_PORT', 587))
-    user_smtp = os.environ.get('SMTP_USER')
-    pass_smtp = os.environ.get('SMTP_PASS')
-    remetente = os.environ.get('EMAIL_REMETENTE')
-
     try:
-        msg = MIMEMultipart()
-        msg['From'] = f"Atendimento Pizzaria <{remetente}>"
-        msg['To'] = destinatario
-        msg['Subject'] = assunto
-        msg.attach(MIMEText(corpo_html, 'html'))
-
-        with smtplib.SMTP(server_smtp, port_smtp, timeout=15) as server:
-            server.starttls()
-            server.login(user_smtp, pass_smtp)
-            server.send_message(msg)
-        print(f"Sucesso: E-mail enviado para {destinatario}")
+        # Remetente padrão do plano gratuito do Resend
+        remetente_padrao = "onboarding@resend.dev"
+        
+        resend.Emails.send({
+            "from": f"Atendimento Pizzaria <{remetente_padrao}>",
+            "to": destinatario,
+            "subject": assunto,
+            "html": corpo_html,
+        })
+        print(f"Sucesso: E-mail enviado via Resend para {destinatario}")
     except Exception as e:
-        print(f"Erro no envio de e-mail (Background): {e}")
+        print(f"Erro no Resend (Background): {e}")
 
 # --- MODELOS ---
 class Reclamacao(db.Model):
@@ -89,7 +85,7 @@ class FotoReclamacao(db.Model):
     reclamacao_id = db.Column(db.Integer, db.ForeignKey('reclamacoes.id'), nullable=False)
     caminho_arquivo = db.Column(db.String(255), nullable=False)
 
-# --- ROTAS ---
+# --- ROTAS CLIENTE ---
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -103,12 +99,10 @@ def cadastrar():
     descricao = request.form.get('descricao')
     
     try:
-        # 1. Salva no banco (Aiven)
         nova = Reclamacao(nome, email, telefone, produto, descricao)
         db.session.add(nova)
         db.session.commit()
 
-        # 2. Upload para Nuvem (Cloudinary)
         if 'foto' in request.files:
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
@@ -118,19 +112,41 @@ def cadastrar():
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # 3. DISPARO ASSÍNCRONO (BREVO)
-        # O Thread permite que o e-mail tente ser enviado "atrás das cortinas"
-        assunto = f"Pizzaria Regalo - Protocolo: {nova.codigo_unico}"
-        corpo = f"<h3>Olá, {nome}!</h3><p>Sua reclamação foi registrada: <strong>{nova.codigo_unico}</strong></p>"
-        
+        # Disparo assíncrono para não travar o carregamento da página
+        assunto = f"Protocolo Pizzaria: {nova.codigo_unico}"
+        corpo = f"<h3>Olá, {nome}!</h3><p>Sua queixa foi registrada. Protocolo: <strong>{nova.codigo_unico}</strong></p>"
         threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
 
-        # 4. Resposta imediata para o cliente
         return render_template('sucesso.html', codigo=nova.codigo_unico)
-
     except Exception as e:
         db.session.rollback()
         return f"Erro ao processar: {e}"
+
+@app.route('/consultar', methods=['GET', 'POST'])
+def consultar():
+    reclamacao = None
+    if request.method == 'POST':
+        codigo = request.form.get('codigo')
+        reclamacao = Reclamacao.query.filter_by(codigo_unico=codigo).first()
+    return render_template('consultar.html', reclamacao=reclamacao)
+
+# --- ROTA ADMIN (SEM PAGINAÇÃO) ---
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_painel():
+    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin_padrao')
+    
+    if request.method == 'POST':
+        if request.form.get('senha') == admin_pass:
+            session['admin_logado'] = True
+            return redirect(url_for('admin_painel'))
+        flash('Senha incorreta!')
+    
+    if session.get('admin_logado'):
+        # Busca todas as reclamações ordenadas pela data mais recente
+        reclamacoes = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).all()
+        return render_template('admin_painel.html', reclamacoes=reclamacoes)
+    
+    return render_template('admin_login.html')
 
 @app.route('/responder/<int:id>', methods=['POST'])
 def responder(id):
@@ -144,39 +160,12 @@ def responder(id):
         reclamacao.status = 'Respondido'
         db.session.commit()
 
-        # Notificação em segundo plano
-        assunto = f"Sua reclamação foi respondida! - {reclamacao.codigo_unico}"
-        corpo = f"<h3>Olá, {reclamacao.nome_cliente}!</h3><p>Resposta: {resposta}</p>"
-        
+        # Notificação em segundo plano via Resend
+        assunto = f"Resposta à sua solicitação - {reclamacao.codigo_unico}"
+        corpo = f"<p>Sua queixa foi analisada. Resposta: {resposta}</p>"
         threading.Thread(target=enviar_email, args=(reclamacao.email_cliente, assunto, corpo)).start()
 
     return redirect(url_for('admin_painel'))
-
-# ... (outras rotas: consultar, admin, sair) ...
-
-@app.route('/consultar', methods=['GET', 'POST'])
-def consultar():
-    reclamacao = None
-    if request.method == 'POST':
-        codigo = request.form.get('codigo')
-        reclamacao = Reclamacao.query.filter_by(codigo_unico=codigo).first()
-        if not reclamacao:
-            flash('Código não encontrado.')
-    return render_template('consultar.html', reclamacao=reclamacao)
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin_painel():
-    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin_padrao')
-    if request.method == 'POST':
-        if request.form.get('senha') == admin_pass:
-            session['admin_logado'] = True
-            return redirect(url_for('admin_painel'))
-        flash('Senha incorreta!')
-    
-    if session.get('admin_logado'):
-        reclamacoes = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).all()
-        return render_template('admin_painel.html', reclamacoes=reclamacoes)
-    return render_template('admin_login.html')
 
 @app.route('/admin/sair')
 def admin_logout():
