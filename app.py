@@ -12,17 +12,17 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 
-# Carrega as variáveis de ambiente
+# Carrega as variáveis de ambiente do .env
 load_dotenv()
 
 app = Flask(__name__)
 
 # --- SEGURANÇA E CONFIGURAÇÃO FLASK ---
-app.secret_key = os.environ.get('SECRET_KEY', 'pizzaria_regalo_2026_seguranca_total')
+app.secret_key = os.environ.get('SECRET_KEY', 'pizzaria_xyz_2026_safe')
 
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=True,  
+    SESSION_COOKIE_SECURE=True,  # Essencial para o HTTPS do Render
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
@@ -53,7 +53,7 @@ def enviar_email(destinatario, assunto, corpo_html):
     api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
     
     remetente_email = os.environ.get('EMAIL_REMETENTE')
-    # Nome do remetente alterado para Pizzaria XYZ
+    # Identidade visual definida como Pizzaria XYZ
     remetente = {"name": "Pizzaria XYZ", "email": remetente_email}
     
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
@@ -69,7 +69,7 @@ def enviar_email(destinatario, assunto, corpo_html):
     except ApiException as e:
         print(f"Erro na API do Brevo (Background): {e}")
 
-# --- MODELOS ---
+# --- MODELOS (SQLAlchemy) ---
 class Reclamacao(db.Model):
     __tablename__ = 'reclamacoes'
     id = db.Column(db.Integer, primary_key=True)
@@ -99,7 +99,8 @@ class FotoReclamacao(db.Model):
     reclamacao_id = db.Column(db.Integer, db.ForeignKey('reclamacoes.id'), nullable=False)
     caminho_arquivo = db.Column(db.String(255), nullable=False)
 
-# --- ROTAS CLIENTE ---
+# --- ROTAS DO SISTEMA ---
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -117,16 +118,18 @@ def cadastrar():
         db.session.add(nova)
         db.session.commit()
 
+        # Upload de fotos com secure_filename
         if 'foto' in request.files:
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
                 if arquivo and arquivo.filename != '':
+                    filename = secure_filename(arquivo.filename)
                     upload_result = cloudinary.uploader.upload(arquivo, folder="reclamacoes_pizzaria")
                     nova_foto = FotoReclamacao(reclamacao_id=nova.id, caminho_arquivo=upload_result['secure_url'])
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # DISPARO DE E-MAIL: CONFIRMAÇÃO DE PROTOCOLO
+        # E-MAIL DE CONFIRMAÇÃO (CLIENTE) - Pizzaria XYZ
         assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
         corpo = f"""
             <h3>Olá, {nome}!</h3>
@@ -150,10 +153,9 @@ def consultar():
         reclamacao = Reclamacao.query.filter_by(codigo_unico=codigo).first()
     return render_template('consultar.html', reclamacao=reclamacao)
 
-# --- ROTA ADMIN ---
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_painel():
-    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin_padrao_mude_isso')
+    admin_pass = os.environ.get('ADMIN_PASSWORD', 'mude_isso_no_render')
     
     if request.method == 'POST':
         if request.form.get('senha') == admin_pass:
@@ -163,8 +165,14 @@ def admin_painel():
         flash('Senha incorreta!')
     
     if session.get('admin_logado'):
-        reclamacoes = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).all()
-        return render_template('admin_painel.html', reclamacoes=reclamacoes)
+        # Paginação Dinâmica
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        pagination = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        return render_template('admin_painel.html', pagination=pagination, per_page=per_page)
     
     return render_template('admin_login.html')
 
@@ -180,7 +188,7 @@ def responder(id):
         reclamacao.status = 'Respondido'
         db.session.commit()
 
-        # DISPARO DE E-MAIL: NOTIFICAÇÃO DE RESPOSTA
+        # E-MAIL DE RESPOSTA (ADMINISTRAÇÃO) - Pizzaria XYZ
         assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
         corpo = f"""
             <h3>Olá, {reclamacao.nome_cliente}!</h3>
