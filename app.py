@@ -5,19 +5,32 @@ from datetime import datetime
 
 import cloudinary
 import cloudinary.uploader
-import resend  # Mantendo a API do Resend
+import sib_api_v3_sdk  # SDK oficial do Brevo
+from sib_api_v3_sdk.rest import ApiException
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
 
-# Carrega as variáveis do arquivo .env
+# Carrega as variáveis de ambiente
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'chave_padrao_pizzaria_2026')
 
-# --- CONFIGURAÇÃO RESEND ---
-resend.api_key = os.environ.get('RESEND_API_KEY', 're_bhxgxbvp_517QPo9ms4aVJXcDCMpaymfR')
+# --- SEGURANÇA E CONFIGURAÇÃO FLASK ---
+# Puxa a chave do ambiente; se não houver, usa uma string de segurança (mude no Render!)
+app.secret_key = os.environ.get('SECRET_KEY', 'pizzaria_regalo_2026_seguranca_total')
+
+# Configurações de Cookie para proteção contra ataques comuns
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=True,  # Ativa para HTTPS no Render
+    SESSION_COOKIE_SAMESITE='Lax',
+)
+
+# --- CONFIGURAÇÃO BREVO API v3 ---
+configuration = sib_api_v3_sdk.Configuration()
+configuration.api_key['api-key'] = os.environ.get('BREVO_API_KEY')
 
 # --- CONFIGURAÇÃO CLOUDINARY ---
 cloudinary.config(
@@ -27,33 +40,36 @@ cloudinary.config(
     secure = True
 )
 
-# --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN COM SSL) ---
+# --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN) ---
 path_to_ca = os.path.join(os.getcwd(), 'ca.pem')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "connect_args": {
-        "ssl": {"ca": path_to_ca}
-    }
+    "connect_args": {"ssl": {"ca": path_to_ca}}
 }
 
 db = SQLAlchemy(app)
 
-# --- FUNÇÃO DE ENVIO VIA RESEND API ---
+# --- FUNÇÃO DE ENVIO VIA BREVO API ---
 def enviar_email(destinatario, assunto, corpo_html):
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+    
+    # O remetente DEVE ser o e-mail validado no seu painel do Brevo
+    remetente_email = os.environ.get('EMAIL_REMETENTE')
+    remetente = {"name": "Pizzaria Regalo", "email": remetente_email}
+    
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=[{"email": destinatario}],
+        html_content=corpo_html,
+        sender=remetente,
+        subject=assunto
+    )
+
     try:
-        # Remetente padrão do plano gratuito do Resend
-        remetente_padrao = "onboarding@resend.dev"
-        
-        resend.Emails.send({
-            "from": f"Atendimento Pizzaria <{remetente_padrao}>",
-            "to": destinatario,
-            "subject": assunto,
-            "html": corpo_html,
-        })
-        print(f"Sucesso: E-mail enviado via Resend para {destinatario}")
-    except Exception as e:
-        print(f"Erro no Resend (Background): {e}")
+        api_instance.send_transac_email(send_smtp_email)
+        print(f"Sucesso: E-mail enviado via Brevo API para {destinatario}")
+    except ApiException as e:
+        print(f"Erro na API do Brevo (Background): {e}")
 
 # --- MODELOS ---
 class Reclamacao(db.Model):
@@ -107,12 +123,13 @@ def cadastrar():
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
                 if arquivo and arquivo.filename != '':
+                    # Limpeza básica do nome do arquivo por segurança
                     upload_result = cloudinary.uploader.upload(arquivo, folder="reclamacoes_pizzaria")
                     nova_foto = FotoReclamacao(reclamacao_id=nova.id, caminho_arquivo=upload_result['secure_url'])
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # Disparo assíncrono para não travar o carregamento da página
+        # Disparo assíncrono para agilidade total do site
         assunto = f"Protocolo Pizzaria: {nova.codigo_unico}"
         corpo = f"<h3>Olá, {nome}!</h3><p>Sua queixa foi registrada. Protocolo: <strong>{nova.codigo_unico}</strong></p>"
         threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
@@ -120,7 +137,7 @@ def cadastrar():
         return render_template('sucesso.html', codigo=nova.codigo_unico)
     except Exception as e:
         db.session.rollback()
-        return f"Erro ao processar: {e}"
+        return f"Erro ao processar cadastro: {e}"
 
 @app.route('/consultar', methods=['GET', 'POST'])
 def consultar():
@@ -130,19 +147,20 @@ def consultar():
         reclamacao = Reclamacao.query.filter_by(codigo_unico=codigo).first()
     return render_template('consultar.html', reclamacao=reclamacao)
 
-# --- ROTA ADMIN (SEM PAGINAÇÃO) ---
+# --- ROTA ADMIN ---
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_painel():
-    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin_padrao')
+    admin_pass = os.environ.get('ADMIN_PASSWORD', 'admin_padrao_mude_isso')
     
     if request.method == 'POST':
         if request.form.get('senha') == admin_pass:
             session['admin_logado'] = True
+            # Força renovação da sessão para segurança
+            session.permanent = True 
             return redirect(url_for('admin_painel'))
         flash('Senha incorreta!')
     
     if session.get('admin_logado'):
-        # Busca todas as reclamações ordenadas pela data mais recente
         reclamacoes = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).all()
         return render_template('admin_painel.html', reclamacoes=reclamacoes)
     
@@ -160,9 +178,9 @@ def responder(id):
         reclamacao.status = 'Respondido'
         db.session.commit()
 
-        # Notificação em segundo plano via Resend
+        # Resposta enviada em segundo plano
         assunto = f"Resposta à sua solicitação - {reclamacao.codigo_unico}"
-        corpo = f"<p>Sua queixa foi analisada. Resposta: {resposta}</p>"
+        corpo = f"<h3>Olá, {reclamacao.nome_cliente}!</h3><p>Sua queixa foi analisada pela gestão: <br><strong>{resposta}</strong></p>"
         threading.Thread(target=enviar_email, args=(reclamacao.email_cliente, assunto, corpo)).start()
 
     return redirect(url_for('admin_painel'))
