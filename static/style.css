@@ -7,6 +7,7 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
+    padding: 15px; /* Pequeno respiro nas bordas */
 }
 
 /* O "cartão" branco no centro da tela (Estilo Figma) */
@@ -17,21 +18,16 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     width: 100%;
     max-width: 400px;
+    box-sizing: border-box;
 }
 
-/* Título principal */
+/* Títulos e Textos */
 .titulo-destaque {
     text-align: center;
     color: #333333;
     margin-bottom: 5px;
 }
 
-/* A palavra em laranja no título */
-.cor-destaque {
-    color: #df6c4f;
-}
-
-/* Subtítulo menorzinho */
 .subtitulo {
     text-align: center;
     color: #777777;
@@ -39,12 +35,11 @@ body {
     margin-bottom: 25px;
 }
 
-/* Espaçamento entre os campos do formulário */
+/* Formulários e Campos */
 .grupo-campo {
     margin-bottom: 15px;
 }
 
-/* Textos acima das caixinhas */
 .grupo-campo label {
     display: block;
     margin-bottom: 5px;
@@ -52,18 +47,17 @@ body {
     font-size: 14px;
 }
 
-/* Caixinhas de digitação */
 .grupo-campo input, 
 .grupo-campo textarea {
     width: 100%;
     padding: 10px;
     border: 1px solid #cccccc;
     border-radius: 6px;
-    box-sizing: border-box; /* Garante que o padding não quebre o tamanho */
+    box-sizing: border-box;
     font-family: inherit;
 }
 
-/* O botão de enviar */
+/* Botões */
 .btn-enviar {
     width: 100%;
     padding: 12px;
@@ -78,35 +72,13 @@ body {
     transition: background-color 0.3s;
 }
 
-/* Efeito ao passar o mouse no botão */
 .btn-enviar:hover {
     background-color: #c55a40;
 }
-.link-secundario {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 0.9rem;
-    color: #666;
-}
 
-.link-secundario a {
-    color: #007bff; /* Ou a cor de destaque do Figma */
-    text-decoration: none;
-    font-weight: bold;
-}
-
-.link-secundario a:hover {
-    text-decoration: underline;
-}
-/* Garante que o campo de arquivo tenha visibilidade e margem */
+/* Estilização de upload de arquivo */
 input[type="file"] {
-    padding: 10px 0;
-    cursor: pointer;
-    width: 100%;
-}
-/* Garante que o campo de foto apareça e siga o padrão do Figma */
-input[type="file"] {
-    display: block !important; /* Força o aparecimento */
+    display: block !important;
     width: 100%;
     padding: 10px;
     margin-top: 5px;
@@ -117,9 +89,8 @@ input[type="file"] {
     cursor: pointer;
 }
 
-/* Estilização extra para o botão de escolher arquivos */
 input[type="file"]::file-selector-button {
-    background-color: #e67e22; /* Cor próxima ao seu botão laranja */
+    background-color: #e67e22;
     color: white;
     padding: 5px 15px;
     border: none;
@@ -129,45 +100,21 @@ input[type="file"]::file-selector-button {
     transition: 0.3s;
 }
 
-input[type="file"]::file-selector-button:hover {
-    background-color: #d35400;
-}
-/* Estilo para a tela de carregamento */
+/* Tela de carregamento (Spinner) */
 #loading-overlay {
-    display: none; /* Escondido por padrão */
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.9); /* Fundo semi-transparente */
+    background: rgba(255, 255, 255, 0.9);
     z-index: 9999;
-    text-align: center;
     flex-direction: column;
     justify-content: center;
     align-items: center;
 }
 
-.spinner {
-    border: 8px solid #f3f3f3;
-    border-top: 8px solid #df6c4f; /* Cor da sua pizzaria */
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    animation: spin 1s linear infinite;
-    margin: 20px auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.loading-text {
-    font-family: Arial, sans-serif;
-    color: #555;
-    font-weight: bold;
-}
 .spinner {
     border: 8px solid #f3f3f3;
     border-top: 8px solid #df6c4f;
@@ -181,4 +128,31 @@ input[type="file"]::file-selector-button:hover {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* ===========================================
+   AJUSTES PARA MOBILE (DESIGN RESPONSIVO)
+   =========================================== */
+@media (max-width: 480px) {
+    body {
+        align-items: flex-start; /* Evita que o conteúdo suma no topo em telas muito pequenas */
+        padding-top: 30px;
+    }
+
+    .container-celular {
+        padding: 20px;
+        width: 100%;
+        max-width: none; /* No mobile, ele flui conforme a tela */
+        box-shadow: none; /* Opcional: remove sombra no mobile para visual mais flat */
+        border-radius: 8px;
+    }
+
+    .titulo-destaque {
+        font-size: 1.4rem;
+    }
+
+    .btn-enviar {
+        font-size: 15px;
+        padding: 14px; /* Botão um pouco maior para facilitar o toque */
+    }
 }
