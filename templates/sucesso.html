@@ -2,27 +2,32 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Reclamação Registrada</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container-celular">
         <h2 class="titulo-destaque" style="color: #28a745;">Sucesso!</h2>
         <p class="subtitulo">Sua reclamação foi registrada.</p>
         
-        <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px;">
-            <p style="margin: 0; color: #155724; font-size: 14px;">Seu código de rastreio (ISO 10002):</p>
-            <h2 style="color: #155724; margin: 10px 0;">{{ codigo }}</h2>
+        <div style="background-color: #d4edda; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; border: 1px solid #c3e6cb;">
+            <p style="margin: 0; color: #155724; font-size: 14px;">Seu código de rastreio:</p>
+            <h2 style="color: #155724; margin: 10px 0; word-wrap: break-word; font-family: monospace;">{{ codigo }}</h2>
         </div>
 
-        <p style="font-size: 13px; text-align: center; color: #555;">Guarde este código para consultar a resposta futuramente.</p>
+        <p style="font-size: 13px; text-align: center; color: #555; line-height: 1.4;">
+            Guarde este código para consultar a resposta futuramente.
+        </p>
         
-        <a href="/consultar">
+        <a href="/consultar" style="text-decoration: none;">
             <button class="btn-enviar" style="background-color: #555;">Consultar Status</button>
         </a>
-        <br><br>
-        <div style="text-align: center;">
-            <a href="/" style="color: #df6c4f; text-decoration: none; font-size: 14px;">Voltar ao início</a>
+
+        <div style="text-align: center; margin-top: 25px;">
+            <a href="/" style="color: #df6c4f; text-decoration: none; font-size: 14px; font-weight: bold;">
+                Voltar ao início
+            </a>
         </div>
     </div>
 </body>
