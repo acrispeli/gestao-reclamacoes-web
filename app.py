@@ -3,7 +3,7 @@ import uuid
 import threading
 from datetime import datetime
 
-import pytz  # Biblioteca para manipulação de fuso horário
+import pytz
 import cloudinary
 import cloudinary.uploader
 import sib_api_v3_sdk
@@ -13,7 +13,6 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 
-# Carrega as variáveis de ambiente do .env
 load_dotenv()
 
 app = Flask(__name__)
@@ -55,7 +54,6 @@ db = SQLAlchemy(app)
 # --- FUNÇÃO DE ENVIO VIA BREVO API ---
 def enviar_email(destinatario, assunto, corpo_html):
     api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
-    
     remetente_email = os.environ.get('EMAIL_REMETENTE')
     remetente = {"name": "Pizzaria XYZ", "email": remetente_email}
     
@@ -68,9 +66,8 @@ def enviar_email(destinatario, assunto, corpo_html):
 
     try:
         api_instance.send_transac_email(send_smtp_email)
-        print(f"Sucesso: E-mail enviado via Brevo API para {destinatario}")
     except ApiException as e:
-        print(f"Erro na API do Brevo (Background): {e}")
+        print(f"Erro na API do Brevo: {e}")
 
 # --- MODELOS ---
 class Reclamacao(db.Model):
@@ -82,10 +79,7 @@ class Reclamacao(db.Model):
     telefone_cliente = db.Column(db.String(20), nullable=False)
     produto_servico = db.Column(db.String(100), nullable=False)
     descricao_problema = db.Column(db.Text, nullable=False)
-    
-    # Garantimos que o default da coluna chame o fuso de SP
     data_abertura = db.Column(db.DateTime, default=lambda: datetime.now(fuso_horario))
-    
     status = db.Column(db.String(20), default='Pendente')
     resposta_admin = db.Column(db.Text, nullable=True)
     data_resposta = db.Column(db.DateTime, nullable=True)
@@ -98,7 +92,6 @@ class Reclamacao(db.Model):
         self.produto_servico = produto_servico
         self.descricao_problema = descricao_problema
         self.codigo_unico = str(uuid.uuid4())[:8]
-        # Forçamos a data no momento da inicialização para o fuso correto
         self.data_abertura = datetime.now(fuso_horario)
 
 class FotoReclamacao(db.Model):
@@ -130,27 +123,24 @@ def cadastrar():
             arquivos = request.files.getlist('foto')
             for arquivo in arquivos:
                 if arquivo and arquivo.filename != '':
-                    filename = secure_filename(arquivo.filename)
                     upload_result = cloudinary.uploader.upload(arquivo, folder="reclamacoes_pizzaria")
                     nova_foto = FotoReclamacao(reclamacao_id=nova.id, caminho_arquivo=upload_result['secure_url'])
                     db.session.add(nova_foto)
             db.session.commit()
 
-        # E-mail formatado conforme solicitado
         assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
-        corpo = f"""
-            <h3>Olá, {nome}!</h3>
-            <p>Sua solicitação foi registrada com sucesso!</p>
-            <p><strong>Seu Protocolo:</strong> {nova.codigo_unico}</p>
-            <p>Utilize este código para consultar o status do seu atendimento em nosso site.</p>
-            <p><a href='https://atendimento-pizzaria.onrender.com/consultar'>Consultar Atendimento</a></p>
-        """
+        corpo = f"<h3>Olá, {nome}!</h3><p>Sua solicitação foi registrada: <strong>{nova.codigo_unico}</strong></p>"
         threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
 
-        return render_template('sucesso.html', codigo=nova.codigo_unico)
+        # REDIRECIONAMENTO PARA EVITAR ERRO DE ESCALA NO MOBILE
+        return redirect(url_for('pagina_sucesso', codigo=nova.codigo_unico))
     except Exception as e:
         db.session.rollback()
-        return f"Erro ao processar cadastro: {e}"
+        return f"Erro: {e}"
+
+@app.route('/sucesso/<codigo>')
+def pagina_sucesso(codigo):
+    return render_template('sucesso.html', codigo=codigo)
 
 @app.route('/consultar', methods=['GET', 'POST'])
 def consultar():
@@ -163,55 +153,28 @@ def consultar():
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_painel():
     admin_pass = os.environ.get('ADMIN_PASSWORD', 'mude_isso_no_render')
-    
     if request.method == 'POST':
         if request.form.get('senha') == admin_pass:
             session['admin_logado'] = True
-            session.permanent = True 
             return redirect(url_for('admin_painel'))
-        flash('Senha incorreta!')
     
     if session.get('admin_logado'):
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        
-        pagination = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
-        return render_template('admin_painel.html', pagination=pagination, per_page=per_page)
-    
+        pagination = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).paginate(page=request.args.get('page', 1, type=int), per_page=20)
+        return render_template('admin_painel.html', pagination=pagination)
     return render_template('admin_login.html')
 
 @app.route('/responder/<int:id>', methods=['POST'])
 def responder(id):
     if not session.get('admin_logado'): return redirect(url_for('admin_painel'))
-    
     reclamacao = Reclamacao.query.get(id)
     if reclamacao:
         resposta = request.form.get('resposta')
         reclamacao.resposta_admin = resposta
-        reclamacao.data_resposta = datetime.now(fuso_horario) # Data da resposta localizada
+        reclamacao.data_resposta = datetime.now(fuso_horario)
         reclamacao.status = 'Respondido'
         db.session.commit()
-
-        assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
-        corpo = f"""
-            <h3>Olá, {reclamacao.nome_cliente}!</h3>
-            <p>Sua solicitação foi analisada pela nossa equipe.</p>
-            <p><strong>Resposta da Administração:</strong> {resposta}</p>
-            <p>Agradecemos seu feedback, ele é essencial para nossa melhoria contínua.</p>
-        """
-        threading.Thread(target=enviar_email, args=(reclamacao.email_cliente, assunto, corpo)).start()
-
-    return redirect(url_for('admin_painel'))
-
-@app.route('/admin/sair')
-def admin_logout():
-    session.pop('admin_logado', None)
     return redirect(url_for('admin_painel'))
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    with app.app_context(): db.create_all()
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
