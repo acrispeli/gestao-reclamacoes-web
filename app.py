@@ -42,7 +42,6 @@ cloudinary.config(
 )
 
 # --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN) ---
-# Usando dirname para garantir que encontre o ca.pem independente de onde o Render inicie o app
 path_to_ca = os.path.join(os.path.dirname(__file__), 'ca.pem')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -51,6 +50,9 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 
 db = SQLAlchemy(app)
+
+# URL Base do seu site para os links nos e-mails
+BASE_URL = "https://atendimento-pizzaria.onrender.com"
 
 # --- FUNÇÃO DE ENVIO VIA BREVO API ---
 def enviar_email(destinatario, assunto, corpo_html):
@@ -129,8 +131,20 @@ def cadastrar():
                     db.session.add(nova_foto)
             db.session.commit()
 
-        assunto = f"Atendimento Pizzaria - Protocolo: {nova.codigo_unico}"
-        corpo = f"<h3>Olá, {nome}!</h3><p>Sua solicitação foi registrada: <strong>{nova.codigo_unico}</strong></p>"
+        # E-mail de Registro (Exemplo 1)
+        assunto = f"Solicitação Registrada - Protocolo: {nova.codigo_unico}"
+        link_direto = f"{BASE_URL}/consultar?codigo={nova.codigo_unico}"
+        
+        corpo = f"""
+        <div style="font-family: Arial, sans-serif; color: #333;">
+            <p>Olá, <strong>{nome}</strong>!</p>
+            <p>Sua solicitação foi registrada com sucesso!</p>
+            <p>Seu Protocolo: <strong>{nova.codigo_unico}</strong></p>
+            <p>Utilize este código para consultar o status do seu atendimento em nosso site.</p>
+            <br>
+            <a href="{link_direto}" style="background-color: #df6c4f; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Consultar Atendimento</a>
+        </div>
+        """
         threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
 
         return redirect(url_for('pagina_sucesso', codigo=nova.codigo_unico))
@@ -145,16 +159,17 @@ def pagina_sucesso(codigo):
 @app.route('/consultar', methods=['GET', 'POST'])
 def consultar():
     reclamacao = None
-    if request.method == 'POST':
-        codigo = request.form.get('codigo')
+    # Verifica se o código veio por POST (formulário) ou por GET (link do e-mail)
+    codigo = request.form.get('codigo') or request.args.get('codigo')
+    
+    if codigo:
         reclamacao = Reclamacao.query.filter_by(codigo_unico=codigo).first()
+        
     return render_template('consultar.html', reclamacao=reclamacao)
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_painel():
     erro = None
-    
-    # 1. TRATAMENTO DO LOGIN (POST) - Quando o admin aperta o botão "Entrar"
     if request.method == 'POST':
         admin_pass = os.environ.get('ADMIN_PASSWORD', 'mude_isso_no_render')
         if request.form.get('senha') == admin_pass:
@@ -163,12 +178,9 @@ def admin_painel():
         else:
             erro = "Senha Incorreta. Tente novamente."
             
-    # 2. VERIFICAÇÃO DE SEGURANÇA (GET ou POST com senha errada)
     if not session.get('admin_logado'):
-        # MUDEI AQUI: Agora ele carrega o arquivo 'admin_login.html' que você criou!
         return render_template('admin_login.html', erro=erro) 
 
-    # 3. SÓ EXECUTA A BUSCA NO BANCO SE ESTIVER LOGADO E COM SUCESSO
     quantidade_por_pagina = request.args.get('per_page', 20, type=int)
     page_num = request.args.get('page', 1, type=int)
     
@@ -189,11 +201,23 @@ def responder(id):
         reclamacao.data_resposta = datetime.now(fuso_horario)
         reclamacao.status = 'Respondido'
         db.session.commit()
+
+        # E-mail de Resposta (Exemplo 2)
+        assunto = f"Resposta à sua solicitação - Protocolo: {reclamacao.codigo_unico}"
+        corpo_resposta = f"""
+        <div style="font-family: Arial, sans-serif; color: #333;">
+            <p>Olá, <strong>{reclamacao.nome_cliente}</strong>!</p>
+            <p>Sua solicitação foi analisada pela nossa equipe.</p>
+            <p><strong>Resposta da Administração:</strong> {resposta}</p>
+            <p>Agradecemos seu feedback, ele é essencial para nossa melhoria contínua.</p>
+        </div>
+        """
+        threading.Thread(target=enviar_email, args=(reclamacao.email_cliente, assunto, corpo_resposta)).start()
+
     return redirect(url_for('admin_painel'))
 
 @app.route('/logout')
 def admin_logout():
-    # Usando clear() é mais seguro, ele limpa qualquer vestígio do usuário na sessão
     session.clear() 
     return redirect(url_for('admin_painel'))
 
