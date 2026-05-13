@@ -4,54 +4,129 @@
 * {
     margin: 0;
     padding: 0;
-    box-sizing: border-box; /* Fundamental para evitar que o site "estoure" a largura */
+    box-sizing: border-box; /* Fundamental para o mobile não quebrar */
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: Arial, sans-serif; /* Retornado para a sua fonte original */
     background-color: #f4f4f9;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    padding: 15px;
-    line-height: 1.6;
+    padding: 15px; 
 }
 
-/* O "cartão" - Agora mais flexível para Mobile */
+/* O "cartão" branco centralizado */
 .container-celular {
     background-color: #ffffff;
-    padding: 2rem;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     width: 100%;
-    max-width: 450px; /* Um pouco maior para melhor leitura no Desktop */
-    text-align: center;
-    animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    max-width: 400px; 
 }
 
 /* ===========================================
-   TEXTOS E TÍTULOS
+   TEXTOS E TÍTULOS (Original)
    =========================================== */
 .titulo-destaque {
-    color: #333;
-    font-size: 1.8rem;
-    margin-bottom: 10px;
+    text-align: center;
+    color: #333333;
+    margin-bottom: 5px;
 }
 
 .cor-destaque {
-    color: #df6c4f; /* Cor oficial Pizzaria XYZ */
+    color: #df6c4f; 
 }
 
 .subtitulo {
-    color: #666;
-    font-size: 1rem;
+    text-align: center;
+    color: #777777;
+    font-size: 14px;
     margin-bottom: 25px;
+}
+
+/* ===========================================
+   FORMULÁRIOS E CAMPOS (Sem negrito)
+   =========================================== */
+.grupo-campo {
+    margin-bottom: 15px;
+}
+
+.grupo-campo label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555555;
+    font-size: 14px;
+    font-weight: normal; /* Garantindo que não fique em negrito */
+}
+
+.grupo-campo input, 
+.grupo-campo textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 16px; 
+}
+
+input[type="file"] {
+    display: block !important;
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+input[type="file"]::file-selector-button {
+    background-color: #e67e22;
+    color: white;
+    padding: 5px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: 0.3s;
+}
+
+/* ===========================================
+   BOTÕES E LINKS
+   =========================================== */
+.btn-enviar {
+    width: 100%;
+    padding: 12px;
+    background-color: #df6c4f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+.btn-enviar:hover {
+    background-color: #c55a40;
+}
+
+.link-secundario {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+}
+
+.link-secundario a {
+    color: #df6c4f;
+    text-decoration: none;
+    font-weight: bold;
 }
 
 /* ===========================================
@@ -61,6 +136,7 @@ body {
     font-size: 50px;
     color: #2ecc71;
     margin-bottom: 15px;
+    text-align: center;
 }
 
 .protocolo-container {
@@ -69,18 +145,18 @@ body {
     padding: 15px;
     border-radius: 8px;
     margin: 20px 0;
+    text-align: center;
 }
 
 .protocolo-label {
-    font-size: 0.85rem;
+    font-size: 14px;
     color: #777;
     text-transform: uppercase;
-    letter-spacing: 1px;
 }
 
 .protocolo-codigo {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 1.5rem;
+    font-family: monospace;
+    font-size: 24px;
     font-weight: bold;
     color: #333;
     display: block;
@@ -88,95 +164,296 @@ body {
 }
 
 /* ===========================================
-   FORMULÁRIOS E BOTÕES
+   TELA DE CARREGAMENTO (LOADING)
+   =========================================== */
+#loading-overlay {
+    display: none; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 9999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #df6c4f;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+.loading-text {
+    color: #555;
+    font-weight: bold;
+    text-align: center;
+    padding: 0 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===========================================
+   AJUSTES PARA MOBILE (DESIGN RESPONSIVO)
+   =========================================== */
+@media (max-width: 480px) {
+    body {
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+
+    .container-celular {
+        padding: 20px;
+        width: 100%;
+        max-width: none;
+        box-shadow: none; 
+        border: 1px solid #eeeeee;
+    }
+
+    .titulo-destaque {
+        font-size: 24px;
+    }
+
+    .btn-enviar {
+        padding: 15px;
+        font-size: 17px; 
+    }
+}/* ===========================================
+   CONFIGURAÇÕES GERAIS E RESET
+   =========================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; /* Fundamental para o mobile não quebrar */
+}
+
+body {
+    font-family: Arial, sans-serif; /* Retornado para a sua fonte original */
+    background-color: #f4f4f9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 15px; 
+}
+
+/* O "cartão" branco centralizado */
+.container-celular {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    width: 100%;
+    max-width: 400px; 
+}
+
+/* ===========================================
+   TEXTOS E TÍTULOS (Original)
+   =========================================== */
+.titulo-destaque {
+    text-align: center;
+    color: #333333;
+    margin-bottom: 5px;
+}
+
+.cor-destaque {
+    color: #df6c4f; 
+}
+
+.subtitulo {
+    text-align: center;
+    color: #777777;
+    font-size: 14px;
+    margin-bottom: 25px;
+}
+
+/* ===========================================
+   FORMULÁRIOS E CAMPOS (Sem negrito)
    =========================================== */
 .grupo-campo {
-    text-align: left;
-    margin-bottom: 18px;
+    margin-bottom: 15px;
 }
 
 .grupo-campo label {
     display: block;
-    margin-bottom: 8px;
-    color: #444;
-    font-weight: 600;
+    margin-bottom: 5px;
+    color: #555555;
+    font-size: 14px;
+    font-weight: normal; /* Garantindo que não fique em negrito */
 }
 
 .grupo-campo input, 
 .grupo-campo textarea {
     width: 100%;
-    padding: 12px;
-    border: 1.5px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px; /* Impede zoom forçado no iOS */
-    transition: border-color 0.3s;
+    padding: 10px;
+    border: 1px solid #cccccc;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 16px; 
 }
 
-.grupo-campo input:focus {
-    border-color: #df6c4f;
-    outline: none;
-}
-
-.btn-enviar {
+input[type="file"] {
+    display: block !important;
     width: 100%;
-    padding: 14px;
-    background-color: #df6c4f;
-    color: white;
-    border: none;
+    padding: 10px;
+    margin-top: 5px;
+    background: #fff;
+    border: 1px solid #ddd;
     border-radius: 8px;
-    font-size: 1rem;
-    font-weight: bold;
+    font-size: 0.9rem;
     cursor: pointer;
-    transition: transform 0.2s, background-color 0.3s;
 }
 
-.btn-enviar:active {
-    transform: scale(0.98);
-}
-
-.btn-secundario {
-    display: inline-block;
-    margin-top: 15px;
-    color: #df6c4f;
-    text-decoration: none;
-    font-size: 0.95rem;
-    font-weight: 500;
+input[type="file"]::file-selector-button {
+    background-color: #e67e22;
+    color: white;
+    padding: 5px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: 0.3s;
 }
 
 /* ===========================================
-   AJUSTES PARA MOBILE (A CHAVE DO PROBLEMA)
+   BOTÕES E LINKS
    =========================================== */
-@media (max-width: 480px) {
-    body {
-        padding: 10px;
-        align-items: center; /* Mantém centralizado verticalmente se couber */
-    }
-
-    .container-celular {
-        padding: 1.5rem;
-        border-radius: 12px;
-        /* Removemos sombras pesadas no mobile para um look mais nativo */
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    }
-
-    .titulo-destaque {
-        font-size: 1.5rem;
-    }
-
-    .protocolo-codigo {
-        font-size: 1.3rem;
-    }
+.btn-enviar {
+    width: 100%;
+    padding: 12px;
+    background-color: #df6c4f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-top: 10px;
+    transition: background-color 0.3s;
 }
 
-/* Loading overlay permanece igual, mas com z-index garantido */
+.btn-enviar:hover {
+    background-color: #c55a40;
+}
+
+.link-secundario {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #666;
+}
+
+.link-secundario a {
+    color: #df6c4f;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* ===========================================
+   ESTILO ESPECÍFICO DA TELA DE SUCESSO
+   =========================================== */
+.sucesso-icon {
+    font-size: 50px;
+    color: #2ecc71;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.protocolo-container {
+    background-color: #fff5f2;
+    border: 2px dashed #df6c4f;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.protocolo-label {
+    font-size: 14px;
+    color: #777;
+    text-transform: uppercase;
+}
+
+.protocolo-codigo {
+    font-family: monospace;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    display: block;
+    margin-top: 5px;
+}
+
+/* ===========================================
+   TELA DE CARREGAMENTO (LOADING)
+   =========================================== */
 #loading-overlay {
-    display: none;
+    display: none; 
     position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(255, 255, 255, 0.98);
-    z-index: 10000;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    z-index: 9999;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+}
+
+.spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #df6c4f;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+.loading-text {
+    color: #555;
+    font-weight: bold;
+    text-align: center;
+    padding: 0 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ===========================================
+   AJUSTES PARA MOBILE (DESIGN RESPONSIVO)
+   =========================================== */
+@media (max-width: 480px) {
+    body {
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+
+    .container-celular {
+        padding: 20px;
+        width: 100%;
+        max-width: none;
+        box-shadow: none; 
+        border: 1px solid #eeeeee;
+    }
+
+    .titulo-destaque {
+        font-size: 24px;
+    }
+
+    .btn-enviar {
+        padding: 15px;
+        font-size: 17px; 
+    }
 }
