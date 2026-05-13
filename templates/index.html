@@ -24,7 +24,10 @@
 
             <div class="grupo-campo">
                 <label for="telefone">Telefone/WhatsApp</label>
-                <input type="tel" id="telefone" name="telefone" required>
+                <input type="tel" id="telefone" name="telefone" required
+                       placeholder="(17) 99999-0000" 
+                       maxlength="15" 
+                       oninput="mascaraTelefone(event)">
             </div>
 
             <div class="grupo-campo">
@@ -60,6 +63,31 @@
     </div>
 
     <script>
+        // --- FUNÇÃO PARA MÁSCARA DO TELEFONE ---
+        function mascaraTelefone(event) {
+            let input = event.target;
+            
+            // Remove tudo que NÃO for número (letras, espaços, símbolos)
+            let valor = input.value.replace(/\D/g, ''); 
+            
+            let formatado = "";
+
+            // Aplica a formatação passo a passo conforme a pessoa digita
+            if (valor.length > 0) {
+                formatado = '(' + valor.substring(0, 2);
+            }
+            if (valor.length > 2) {
+                formatado += ') ' + valor.substring(2, 7);
+            }
+            if (valor.length > 7) {
+                formatado += '-' + valor.substring(7, 11);
+            }
+
+            // Devolve o valor formatado para o campo
+            input.value = formatado;
+        }
+
+        // --- LÓGICA DE UPLOAD E PREVIEW DE FOTOS ---
         let listaArquivosGlobal = new DataTransfer();
         const inputFoto = document.getElementById('foto');
         const container = document.getElementById('preview-container');
@@ -116,9 +144,8 @@
             inputFoto.files = listaArquivosGlobal.files;
             renderizarPrevia();
         }
-    </script>
 
-    <script>
+        // --- LÓGICA DO LOADING SPINNER NO SUBMIT ---
         document.querySelector('form').addEventListener('submit', function() {
             document.getElementById('loading-overlay').style.display = 'flex';
             const btn = document.querySelector('button[type="submit"]');
