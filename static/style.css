@@ -124,9 +124,13 @@ input[type="file"]::file-selector-button {
 }
 
 .link-secundario a {
-    color: #df6c4f;
-    text-decoration: none;
-    font-weight: bold;
+    color: #007BFF; /* Azul padrão clássico de links */
+    text-decoration: underline; /* Garante que fique sublinhado */
+    font-weight: bold; /* Deixa um pouco mais destacado (opcional) */
+}
+
+.link-secundario a:hover {
+    color: #0056b3; /* Fica um azul mais escuro ao passar o mouse */
 }
 
 /* ===========================================
