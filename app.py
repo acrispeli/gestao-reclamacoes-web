@@ -56,7 +56,7 @@ db = SQLAlchemy(app)
 def enviar_email(destinatario, assunto, corpo_html):
     api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
     remetente_email = os.environ.get('EMAIL_REMETENTE')
-    remetente = {"name": "Pizzaria XYZ", "email": remetente_email}
+    remetente = {"name": "Atendimento Pizzaria", "email": remetente_email}
     
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
         to=[{"email": destinatario}],
