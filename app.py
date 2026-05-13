@@ -160,9 +160,15 @@ def admin_painel():
             return redirect(url_for('admin_painel'))
     
     if session.get('admin_logado'):
-        pagination = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).paginate(page=request.args.get('page', 1, type=int), per_page=20)
-        return render_template('admin_painel.html', pagination=pagination)
-    return render_template('admin_login.html')
+        # 1. Capturamos o valor do 'per_page' que vem da URL. Se não vier nada, o padrão é 20.
+        quantidade_por_pagina = request.args.get('per_page', 20, type=int)
+        
+        # 2. Passamos essa variável dinâmica para a função paginate
+        pagination = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).paginate(
+            page=request.args.get('page', 1, type=int), 
+            per_page=quantidade_por_pagina
+        )
+    return render_template('admin_painel.html', pagination=pagination)
 
 @app.route('/responder/<int:id>', methods=['POST'])
 def responder(id):
