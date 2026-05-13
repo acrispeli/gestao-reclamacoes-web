@@ -42,7 +42,8 @@ cloudinary.config(
 )
 
 # --- CONFIGURAÇÃO BANCO DE DADOS (AIVEN) ---
-path_to_ca = os.path.join(os.getcwd(), 'ca.pem')
+# Usando dirname para garantir que encontre o ca.pem independente de onde o Render inicie o app
+path_to_ca = os.path.join(os.path.dirname(__file__), 'ca.pem')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -173,6 +174,14 @@ def responder(id):
         reclamacao.data_resposta = datetime.now(fuso_horario)
         reclamacao.status = 'Respondido'
         db.session.commit()
+    return redirect(url_for('admin_painel'))
+
+# --- NOVA ROTA ADICIONADA AQUI ---
+@app.route('/logout')
+def admin_logout():
+    # Remove o status de logado da sessão
+    session.pop('admin_logado', None)
+    # Redireciona de volta para a tela de login (/admin)
     return redirect(url_for('admin_painel'))
 
 if __name__ == '__main__':
