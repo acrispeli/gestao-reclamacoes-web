@@ -133,7 +133,6 @@ def cadastrar():
         corpo = f"<h3>Olá, {nome}!</h3><p>Sua solicitação foi registrada: <strong>{nova.codigo_unico}</strong></p>"
         threading.Thread(target=enviar_email, args=(email, assunto, corpo)).start()
 
-        # REDIRECIONAMENTO PARA EVITAR ERRO DE ESCALA NO MOBILE
         return redirect(url_for('pagina_sucesso', codigo=nova.codigo_unico))
     except Exception as e:
         db.session.rollback()
@@ -153,26 +152,23 @@ def consultar():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_painel():
-    admin_pass = os.environ.get('ADMIN_PASSWORD', 'mude_isso_no_render')
+    erro = None
     
-    # 1. TRATAMENTO DO LOGIN (POST)
+    # 1. TRATAMENTO DO LOGIN (POST) - Quando o admin aperta o botão "Entrar"
     if request.method == 'POST':
+        admin_pass = os.environ.get('ADMIN_PASSWORD', 'mude_isso_no_render')
         if request.form.get('senha') == admin_pass:
             session['admin_logado'] = True
             return redirect(url_for('admin_painel'))
         else:
-            # Você pode adicionar um flash('Senha Incorreta') aqui se quiser dar um feedback visual
-            pass
+            erro = "Senha Incorreta. Tente novamente."
             
     # 2. VERIFICAÇÃO DE SEGURANÇA (GET ou POST com senha errada)
     if not session.get('admin_logado'):
-        # Se não estiver logado, renderiza A TELA DE LOGIN (não o painel)
-        # Importante: Como você não tem uma rota separada para login e usa o mesmo HTML,
-        # certifique-se de que no seu arquivo 'admin_painel.html' você tenha o bloco
-        # {% if not session.get('admin_logado') %} para mostrar apenas o form de login
-        return render_template('admin_painel.html') 
+        # MUDEI AQUI: Agora ele carrega o arquivo 'admin_login.html' que você criou!
+        return render_template('admin_login.html', erro=erro) 
 
-    # 3. SÓ EXECUTA A BUSCA NO BANCO SE ESTIVER LOGADO
+    # 3. SÓ EXECUTA A BUSCA NO BANCO SE ESTIVER LOGADO E COM SUCESSO
     quantidade_por_pagina = request.args.get('per_page', 20, type=int)
     page_num = request.args.get('page', 1, type=int)
     
@@ -181,7 +177,6 @@ def admin_painel():
         per_page=quantidade_por_pagina
     )
     
-    # Renderiza o painel passando a variável pagination
     return render_template('admin_painel.html', pagination=pagination)
 
 @app.route('/responder/<int:id>', methods=['POST'])
@@ -196,12 +191,10 @@ def responder(id):
         db.session.commit()
     return redirect(url_for('admin_painel'))
 
-# --- NOVA ROTA ADICIONADA AQUI ---
 @app.route('/logout')
 def admin_logout():
-    # Remove o status de logado da sessão
-    session.pop('admin_logado', None)
-    # Redireciona de volta para a tela de login (/admin)
+    # Usando clear() é mais seguro, ele limpa qualquer vestígio do usuário na sessão
+    session.clear() 
     return redirect(url_for('admin_painel'))
 
 if __name__ == '__main__':
