@@ -154,20 +154,34 @@ def consultar():
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_painel():
     admin_pass = os.environ.get('ADMIN_PASSWORD', 'mude_isso_no_render')
+    
+    # 1. TRATAMENTO DO LOGIN (POST)
     if request.method == 'POST':
         if request.form.get('senha') == admin_pass:
             session['admin_logado'] = True
             return redirect(url_for('admin_painel'))
+        else:
+            # Você pode adicionar um flash('Senha Incorreta') aqui se quiser dar um feedback visual
+            pass
+            
+    # 2. VERIFICAÇÃO DE SEGURANÇA (GET ou POST com senha errada)
+    if not session.get('admin_logado'):
+        # Se não estiver logado, renderiza A TELA DE LOGIN (não o painel)
+        # Importante: Como você não tem uma rota separada para login e usa o mesmo HTML,
+        # certifique-se de que no seu arquivo 'admin_painel.html' você tenha o bloco
+        # {% if not session.get('admin_logado') %} para mostrar apenas o form de login
+        return render_template('admin_painel.html') 
+
+    # 3. SÓ EXECUTA A BUSCA NO BANCO SE ESTIVER LOGADO
+    quantidade_por_pagina = request.args.get('per_page', 20, type=int)
+    page_num = request.args.get('page', 1, type=int)
     
-    if session.get('admin_logado'):
-        # 1. Capturamos o valor do 'per_page' que vem da URL. Se não vier nada, o padrão é 20.
-        quantidade_por_pagina = request.args.get('per_page', 20, type=int)
-        
-        # 2. Passamos essa variável dinâmica para a função paginate
-        pagination = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).paginate(
-            page=request.args.get('page', 1, type=int), 
-            per_page=quantidade_por_pagina
-        )
+    pagination = Reclamacao.query.order_by(Reclamacao.data_abertura.desc()).paginate(
+        page=page_num, 
+        per_page=quantidade_por_pagina
+    )
+    
+    # Renderiza o painel passando a variável pagination
     return render_template('admin_painel.html', pagination=pagination)
 
 @app.route('/responder/<int:id>', methods=['POST'])
